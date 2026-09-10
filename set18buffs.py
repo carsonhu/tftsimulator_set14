@@ -222,7 +222,10 @@ class Rapidfire(Buff):
             params,
             phases=["preCombat", "postAttack"],
         )
-        self.per_attack_scaling = {0: 0, 2: 3, 3: 5, 4: 9, 5: 15}
+        # 18.2 (official notes, not on PBE): (4)/(5) went 9/15 -> 8/12.
+        # The cdragon pbe dump still reads 9/15 -- acknowledged in
+        # patch_pin.json rather than followed.
+        self.per_attack_scaling = {0: 0, 2: 3, 3: 5, 4: 8, 5: 12}
         self.max_stacks = 10
         # Named rather than written into performAbility as a literal 10, so
         # patch_check can point a hook at it. An unnamed constant is one no
@@ -259,7 +262,7 @@ class Blossom(Buff):
         # "After combat, your Wisps are empowered" and the shop-side Wisp
         # mechanics are out of scope for a combat simulator -- only the
         # AD/AP grant is modeled.
-        self.scaling = {0: 0, 3: 12, 5: 30, 7: 40, 9: 45, 11: 100}
+        self.scaling = {0: 0, 3: 12, 5: 30, 7: 45, 9: 50, 11: 100}
 
     def extraParameters():
         return {"Title": "Is Blossom", "Min": 0, "Max": 1, "Default": 1}
@@ -343,7 +346,7 @@ class Riftbeast(Buff):
         )
         # (5) shop-overrun and (10) +2 team size are meta/shop mechanics,
         # out of scope for a combat simulator -- only (3) and (7) are modeled.
-        self.stat_scaling = 6  # AD/AS/AP %
+        self.stat_scaling = 5  # AD/AS/AP %
         self.resist_scaling = 5  # Armor/MR
         self.hp_scaling = 50
         self.mana_regen_scaling = 1
@@ -383,17 +386,21 @@ class Summoner(Buff):
             f"{self.display_name} {level}", level, params, phases=["preCombat"]
         )
         # Yorick (+30% Health) is unimplemented for now -- Zyra's extra
-        # plant attacks and Mama Beak/Azir's +45% Damage are modeled.
+        # plant attacks and Mama Beak's/Azir's Damage are modeled.
         self.zyra_bonus_attacks = {0: 0, 2: 4, 3: 6}
-        # (3) improves (2)'s +45% by 50% -> +67.5%, not a flat +45%*2. Same
-        # formula for both Mama Beak's Tiny Beaks and Azir's soldiers, so
-        # they share this one multiplier.
+        # (3) improves (2)'s bonus by 50% -> x1.5, not a flat doubling.
+        #
+        # The two summons used to share one multiplier. PBE 18.2 split them:
+        # DamageMult (0.45) is now Mama Beak's alone and Azir's soldiers read
+        # their own AzirDamageMult (0.20), so they need separate rows.
         self.dmg_mult = {0: 1.0, 2: 1.45, 3: 1 + 0.45 * 1.5}
+        self.azir_dmg_mult = {0: 1.0, 2: 1.20, 3: 1 + 0.20 * 1.5}
 
     def performAbility(self, phase, time, champion, input_=0):
         if phase == "preCombat":
             champion.summoner_bonus_attacks = self.zyra_bonus_attacks.get(self.level, 0)
             champion.summoner_dmg_mult = self.dmg_mult.get(self.level, 1.0)
+            champion.summoner_azir_dmg_mult = self.azir_dmg_mult.get(self.level, 1.0)
         return 0
 
 
@@ -577,9 +584,9 @@ class Solar(Buff):
     one-breakpoint level answers nothing.
 
     The bonus is a share of the damage that triggered it, taken PRE-mitigation
-    and dealt as its own magic instance: 7% of a 100-damage hit is 7 magic
+    and dealt as its own magic instance: 8% of a 100-damage hit is 8 magic
     damage, which the target's Magic Resist then reduces. That is not the same
-    thing as a 7% damage amp, and the difference is not small -- an amp would
+    thing as an 8% damage amp, and the difference is not small -- an amp would
     be reduced by the *Armor* an attack was already being reduced by. The two
     only agree when a target's Armor and Magic Resist are equal, which is why
     this splits the hit in two rather than adding to dmgMultiplier.
@@ -603,16 +610,18 @@ class Solar(Buff):
     three_star_counts = ["0", "1", "2", "3", "4", "5"]
 
     # Team-wide, at every breakpoint: a share of damage dealt, again as damage.
-    bonus_magic_damage = 0.07
+    bonus_magic_damage = 0.08
     # Added to that share (and to the shield) by each unique 3-star Solar.
-    per_three_star = 0.015
+    per_three_star = 0.01
     # 3-stars needed for the Attack Speed and resist row...
     threshold1 = 3
-    threshold1_aspd = 18
-    threshold1_resists = 15
-    # ...and for half the bonus to become true damage.
+    threshold1_aspd = 15
+    # 18.2 (official notes, not on PBE): 15 -> 12. cdragon still says 15;
+    # acknowledged in patch_pin.json.
+    threshold1_resists = 12
+    # ...and for 40% of the bonus to become true damage.
     threshold2 = 5
-    threshold2_true_conversion = 0.5
+    threshold2_true_conversion = 0.4
     # Not modeled (see the class docstring); named so patch_check can still
     # see the number and report it moving.
     shield_ratio = 0.05
@@ -952,16 +961,18 @@ class Blackthorn(Buff):
     The reference bin used to disagree with the champion card -- (4) at a 0.25
     StatMultiplier, (6) at 350 Health with a whole different effect ("the
     sacrifice doesn't die") -- and the card's numbers were used instead. As of
-    PBE 18.1g the bin has caught up and now says 175/300/550 and 0%/30%/60%
-    too, so the two agree and patch_check hooks them. The sacrifice base values
-    and the star/cost scaling table are still not in the bin at all.
+    PBE 18.1g the bin has caught up and agrees with the card, so patch_check
+    hooks them; PBE 18.2 moved the Health rows to 175/350/600. The sacrifice
+    base values and the star/cost scaling table are still not in the bin at
+    all. The official 18.2 notes (not on PBE) moved the AD sacrifice's
+    Attack Speed 12 -> 14% and the AP sacrifice's Mana Regen 1.7 -> 2.
     """
 
     levels = [0, 2, 4, 6]
     display_name = "Blackthorn"
 
     # Health granted to your whole team.
-    team_health = {0: 0, 2: 175, 4: 300, 6: 550}
+    team_health = {0: 0, 2: 175, 4: 350, 6: 600}
     # "Bonus is X% stronger" -- multiplies the sacrifice's stats only.
     bonus_scaling = {0: 1.0, 2: 1.0, 4: 1.3, 6: 1.6}
 
@@ -976,10 +987,10 @@ class Blackthorn(Buff):
     selectable_roles = [ROLE_NONE, ROLE_MAGIC, ROLE_ATTACK]
 
     # Sacrifice base values, before either scaling.
-    magic_mana_regen = 1.7
+    magic_mana_regen = 2.0
     magic_amp = 0.14  # damage amp
     attack_ad = 24  # % AD
-    attack_aspd = 12  # % Attack Speed
+    attack_aspd = 14  # % Attack Speed
 
     star_levels = [1, 2, 3, 4]
     # Every sacrifice on a real board has a cost tier, so there is no untiered
@@ -1089,8 +1100,8 @@ class ProlificPower(Buff):
 
     def __init__(self, level=1, params=0):
         super().__init__(self.display_name, level, params, phases=["postPreCombat"])
-        self.scaling = 8
-        self.scaling_upgraded = 15
+        self.scaling = 4
+        self.scaling_upgraded = 6
 
     def performAbility(self, phase, time, champion, input_=0):
         if phase == "postPreCombat":
@@ -1307,8 +1318,8 @@ class BackrowStar(Buff):
         super().__init__(self.display_name, level, params, phases=["postPreCombat"])
         # Ignoring the "random back row champion" targeting -- applies
         # directly to the buff holder.
-        self.as_bonus = 75
-        self.as_bonus_upgraded = 100
+        self.as_bonus = 85
+        self.as_bonus_upgraded = 115
         self.duration = 7
         self.duration_upgraded = 8
 
@@ -1679,8 +1690,9 @@ class AriseBuff(Buff):
             input_.canOnHit = True
             input_.canCrit = champion.canSpellCrit
             input_.attackType = "magical"
-            # Summoner (2)/(3): soldier damage is boosted +45%/+67.5%.
-            mult = getattr(champion, "summoner_dmg_mult", 1.0)
+            # Summoner (2)/(3): soldier damage is boosted +20%/+30%. Azir's
+            # own variable since PBE 18.2 -- see Summoner.azir_dmg_mult.
+            mult = getattr(champion, "summoner_azir_dmg_mult", 1.0)
             input_.scaling = (
                 ChampionAbilityScaling(champion)
                 if mult == 1.0
@@ -2750,8 +2762,8 @@ class HoldTheLine5(Buff):
 
     def __init__(self, level=1, params=0):
         super().__init__(self.display_name, level, params, phases=["preCombat"])
-        self.ad_scaling = 8
-        self.ap_scaling = 9
+        self.ad_scaling = 9
+        self.ap_scaling = 10
         self.frontliners = 5
 
     def performAbility(self, phase, time, champion, input_=0):
@@ -2766,8 +2778,8 @@ class HoldTheLine7(Buff):
 
     def __init__(self, level=1, params=0):
         super().__init__(self.display_name, level, params, phases=["preCombat"])
-        self.ad_scaling = 8
-        self.ap_scaling = 9
+        self.ad_scaling = 9
+        self.ap_scaling = 10
         self.frontliners = 7
 
     def performAbility(self, phase, time, champion, input_=0):
@@ -3289,7 +3301,7 @@ class BaronsLair(Buff):
 
     def __init__(self, level=1, params=0):
         super().__init__(self.display_name, level, params, phases=["onUpdate"])
-        self.statBonus = 5
+        self.statBonus = 4
         self.nextBonus = 8
 
     def performAbility(self, phase, time, champion, input_=0):

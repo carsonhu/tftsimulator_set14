@@ -141,6 +141,8 @@ DERIVED_TRAIT_HOOKS = [
      None, "(3) is (2) +50%, applied by the trait -- data repeats the (2) row"),
     ("Summoner", "dmg_mult", "DA_18_Summoner", "DamageMult",
      None, "(3) is (2) +50%, applied by the trait -- data repeats the (2) row"),
+    ("Summoner", "azir_dmg_mult", "DA_18_Summoner", "AzirDamageMult",
+     None, "as dmg_mult; PBE 18.2 split Azir's summons onto their own variable"),
 ]
 
 

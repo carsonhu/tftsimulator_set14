@@ -68,9 +68,10 @@ import time
 import urllib.request
 
 SET_NUMBER = 18
-# Set 18 went live 2026-08: the set's own data now comes from the live
-# channel, and pbe is the cross-check.
-CHANNEL = "latest"
+# 18.2 is on PBE and the simulator is pinned to it (see patch_pin.json), so
+# the set's own data comes from the pbe channel again and latest -- the live
+# 18.1 build -- is the cross-check. Flip both back together when 18.2 ships.
+CHANNEL = "pbe"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(HERE, ".tft_cache")
@@ -1028,7 +1029,7 @@ def main(argv=None):
     CHANNEL = args.channel
     if args.out:
         OUT_DIR = os.path.abspath(args.out)
-    elif (SET_NUMBER, CHANNEL) != (18, "latest"):
+    elif (SET_NUMBER, CHANNEL) != (18, "pbe"):
         # Cross-checking another set must not overwrite this folder's own
         # reference data; make the caller name a destination.
         sys.exit("--set/--channel other than 18/pbe needs an explicit --out.")

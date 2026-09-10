@@ -83,7 +83,14 @@ radiants = [
     "RadiantGuinsoosRageblade",
 ]
 
-emblems = ["RapidfireEmblem"]
+emblems = [
+    "RapidfireEmblem",
+    "ExecutionerEmblem",
+    "InvokerEmblem",
+    "LunarEmblem",
+    "FaeEmblem",
+    "PrimalEmblem",
+]
 
 animas = []
 
@@ -103,6 +110,75 @@ class RapidfireEmblem(Emblem):
 
     def __init__(self):
         super().__init__(self.display_name, trait="Rapidfire", aspd=20, phases=None)
+
+
+class ExecutionerEmblem(Emblem):
+    """+20% Crit Chance, +8% Crit Damage. The "executes enemies below 8% of
+    their max Health" rider is not modeled: the targets here are dummies
+    with a Health bar nothing reads."""
+
+    display_name = "Executioner Emblem"
+
+    def __init__(self):
+        super().__init__(
+            self.display_name, trait="Executioner", crit=20, phases=["preCombat"]
+        )
+        # Item carries no crit-damage field, so the 8% is applied by hand.
+        self.crit_dmg = 0.08
+
+    def performAbility(self, phase, time, champion, input_=0):
+        champion.critDmg.addStat(self.crit_dmg)
+        return 0
+
+
+class InvokerEmblem(Emblem):
+    """+3 Mana Regen; on cast, gain AP equal to 8% of the mana spent.
+
+    preAbility rather than postAbility, per request: the AP from a cast is
+    meant to be in the cast it came from. The mana spent is the cast cost
+    (fullMana) -- the starting mana is refunded after the cast, not spent.
+    """
+
+    display_name = "Invoker Emblem"
+
+    def __init__(self):
+        super().__init__(
+            self.display_name, trait="Invoker", manaRegen=3, phases=["preAbility"]
+        )
+        self.ap_per_mana = 0.08
+
+    def performAbility(self, phase, time, champion, input_=0):
+        champion.ap.addStat(champion.fullMana.stat * self.ap_per_mana)
+        return 0
+
+
+class LunarEmblem(Emblem):
+    display_name = "Lunar Emblem"
+
+    def __init__(self):
+        super().__init__(
+            self.display_name, trait="Lunar", ad=20, manaRegen=3, phases=None
+        )
+
+
+class FaeEmblem(Emblem):
+    # 18.2: 250 Health / 15% AD & AP -> 200 / 10%.
+    display_name = "Fae Emblem"
+
+    def __init__(self):
+        super().__init__(
+            self.display_name, trait="Fae", hp=200, ad=10, ap=10, phases=None
+        )
+
+
+class PrimalEmblem(Emblem):
+    # 18.2: 25% -> 35% Attack Speed.
+    display_name = "Primal Emblem"
+
+    def __init__(self):
+        super().__init__(
+            self.display_name, trait="Primal", aspd=35, hp=250, ap=20, phases=None
+        )
 
 
 class NoItem(Item):
@@ -129,7 +205,7 @@ class Bloodthirster(Item):
     display_name = "Bloodthirster"
 
     def __init__(self):
-        super().__init__(self.display_name, ad=20, ap=20, omnivamp=0.20, phases=None)
+        super().__init__(self.display_name, ad=18, ap=18, omnivamp=0.20, phases=None)
 
 
 class EdgeOfNight(Item):
@@ -164,8 +240,7 @@ class GuinsoosRageblade(Item):
 
     def performAbility(self, phase, time, champion, input_=0):
         if time > self.next_bonus:
-            if champion.aspd.stat <= 5:
-                champion.aspd.add += self.aspd_bonus
+            champion.aspd.add += self.aspd_bonus
             self.next_bonus += 1
 
 
@@ -247,9 +322,9 @@ class HoJ(Item):
             self.display_name,
             manaRegen=1,
             crit=20,
-            ad=30,
-            ap=30,
-            omnivamp=0.12,
+            ad=36,
+            ap=36,
+            omnivamp=0.15,
             has_radiant=True,
             phases=["preCombat"],
         )
@@ -740,7 +815,8 @@ class WitsEnd(Item):
 
     def __init__(self):
         super().__init__(self.display_name, aspd=30, mr=30, hp=300, phases="onAttack")
-        self.dmg = {2: 30, 3: 55, 4: 75, 5: 95, 6: 115}
+        # 18.2: 30/55/75/95/115 -> 25/45/65/85/100 by stage.
+        self.dmg = {2: 25, 3: 45, 4: 65, 5: 85, 6: 100}
 
     def performAbility(self, phase, time, champion, input_=0):
         baseDmg = self.dmg[champion.stage]
@@ -783,8 +859,7 @@ class Flickerblade(Item):
 
     def performAbility(self, phase, time, champion, input_=0):
         self.counter += 1
-        if champion.aspd.stat <= 5:
-            champion.aspd.addStat(5)
+        champion.aspd.addStat(4)
         if self.counter == 3:
             champion.bonus_ad.addStat(2)
             champion.ap.addStat(2)
@@ -927,7 +1002,7 @@ class RadiantHoJ(HoJ):
         self.crit = 40
         self.ad = 70
         self.ap = 70
-        self.omnivamp = 0.24
+        self.omnivamp = 0.30
 
 
 class RadiantLastWhisper(LastWhisper):

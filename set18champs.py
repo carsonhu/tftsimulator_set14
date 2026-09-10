@@ -166,7 +166,7 @@ class Varus(Champion):
         self.castTime = 2.0
         self.num_targets = 2
 
-    abilityScaling = create_ability_scaling([385, 580, 925], [30, 45, 70])
+    abilityScaling = create_ability_scaling([415, 625, 1000], [30, 45, 70])
 
     def performAbility(self, opponents, items, time):
         # Piercing Arrow: hits the first num_targets enemies in line; damage is
@@ -212,7 +212,7 @@ class Yunara(Champion):
         # short dashes turn out to be more frequent in practice.
         self.castTime = 1.8
 
-    abilityScaling = create_ability_scaling([150, 255, 400], [10, 15, 25])
+    abilityScaling = create_ability_scaling([160, 240, 370], [10, 15, 25])
     splash_ratio = 0.35
     splash_targets = 2
 
@@ -271,9 +271,9 @@ class LeBlanc(Champion):
         self.castTime = 1.0
         self.num_targets = 2
 
-    abilityScaling = create_ability_scaling([0, 0, 0], [250, 375, 565])
+    abilityScaling = create_ability_scaling([0, 0, 0], [260, 390, 615])
     splashScaling = create_ability_scaling(
-        [0, 0, 0], [85, 130, 190], func_name="splashScaling"
+        [0, 0, 0], [100, 150, 230], func_name="splashScaling"
     )
 
     def performAbility(self, opponents, items, time):
@@ -291,8 +291,8 @@ class LeBlanc(Champion):
 class MamaBeak(Champion):
     def __init__(self, level):
         hp = 650
-        atk = 50
-        curMana = 30
+        atk = 55
+        curMana = 20
         fullMana = 60
         aspd = 0.75
         armor = 35
@@ -317,7 +317,7 @@ class MamaBeak(Champion):
         # than a togglable ultimate.
         self.items.append(TinyBeaksBuff())
 
-    beakScaling = create_ability_scaling([20, 30, 48], [0, 0, 0], func_name="beakScaling")
+    beakScaling = create_ability_scaling([22, 33, 48], [0, 0, 0], func_name="beakScaling")
 
     def performAbility(self, opponents, items, time):
         # Flock Family: the cast itself deals no damage -- it just opens the
@@ -409,7 +409,7 @@ class Zyra(Champion):
         self.plant_attacks = 10
         self.plant_interval = 0.8
 
-    plantScaling = create_ability_scaling([0, 0, 0], [37, 55, 225], func_name="plantScaling")
+    plantScaling = create_ability_scaling([0, 0, 0], [35, 53, 225], func_name="plantScaling")
 
     def performAbility(self, opponents, items, time):
         # Rampant Growth: spawn num_plants plants, each independently
@@ -456,7 +456,7 @@ class Azir(Champion):
         self.castTime = 0.5
         self.items.append(AriseBuff())
 
-    abilityScaling = create_ability_scaling([0, 0, 0], [40, 60, 96])
+    abilityScaling = create_ability_scaling([0, 0, 0], [43, 65, 103])
 
     def performAbility(self, opponents, items, time):
         # Arise!: no direct cast damage -- AriseBuff (see __init__) handles
@@ -531,12 +531,14 @@ class Ahri(Champion):
         self.castTime = 1.8
         self.num_targets = 5
 
-    abilityScaling = create_ability_scaling([0, 0, 0], [425, 640, 3500])
+    abilityScaling = create_ability_scaling([0, 0, 0], [455, 685, 3500])
+    # "reduced by X% per hex away from the epicenter". 18.2: 20% -> 21%.
+    falloff_per_hex = 0.21
 
     def performAbility(self, opponents, items, time):
         # Spirit Bomb: 1 target at the epicenter (full damage), the next 2
-        # at -20%, everyone else at -40% -- including any beyond the base
-        # 5 (overflow just extends the -40% ring). Fewer than num_targets
+        # one hex out, everyone else two hexes out -- including any beyond
+        # the base 5 (overflow just extends the outer ring). Fewer than num_targets
         # enemies truncates this list from the end (outermost ring drops
         # first), which falls out naturally from only iterating over
         # however many opponents actually exist.
@@ -544,9 +546,9 @@ class Ahri(Champion):
             if i == 0:
                 mult = 1.0
             elif i <= 2:
-                mult = 0.8
+                mult = 1 - self.falloff_per_hex
             else:
-                mult = 0.6
+                mult = 1 - 2 * self.falloff_per_hex
 
             def scaling(level, AD, AP, mult=mult):
                 return mult * self.abilityScaling(level, AD, AP)
@@ -717,7 +719,9 @@ class Karma(Champion):
 
 class MasterYi(Champion):
     # The AD version's base AD; the AP version is a much weaker autoattacker.
-    AD_VERSION_ATK = 65
+    # 18.2 (official notes): 65 -> 60. The cdragon pbe dump reads 62 and lags
+    # the live build; acknowledged in patch_pin.json.
+    AD_VERSION_ATK = 60
     AP_VERSION_ATK = 15
 
     def __init__(self, level):
@@ -729,8 +733,8 @@ class MasterYi(Champion):
         # it lives in MasterYiUlt instead.
         fullMana = -1
         aspd = 0.8
-        armor = 60
-        mr = 60
+        armor = 55
+        mr = 55
         super().__init__(
             "Master Yi",
             hp,
@@ -757,7 +761,9 @@ class MasterYi(Champion):
         self.items.append(MasterYiUlt())
 
     # AP version: bonus magic damage on each of the two Double Strike hits.
-    abilityScaling = create_ability_scaling([0, 0, 0], [155, 235, 375])
+    # 18.2 (official notes): 140/210/335 -> 125/190/285. The card itself
+    # prints no number for this line, so the notes are the only source.
+    abilityScaling = create_ability_scaling([0, 0, 0], [125, 190, 285])
 
     def performAbility(self, opponents, items, time):
         # Never actually called -- fullMana=-1 keeps canCast() False. Wuju
@@ -774,7 +780,7 @@ class Akali(Champion):
         hp = 650
         atk = self.AD_VERSION_ATK
         curMana = 0
-        fullMana = 30
+        fullMana = 25
         aspd = 0.75
         armor = 35
         mr = 35
@@ -818,7 +824,7 @@ class Akali(Champion):
     # target, same damage type, so splitting would only double-count spell
     # crit rolls.
     adAbilityScaling = create_ability_scaling(
-        [145, 220, 345], [10, 15, 25], func_name="adAbilityScaling"
+        [145, 220, 380], [10, 15, 25], func_name="adAbilityScaling"
     )
     adBurningScaling = create_ability_scaling(
         [35, 52, 80], [0, 0, 0], func_name="adBurningScaling"
@@ -903,7 +909,7 @@ class Ezreal(Champion):
         # blast can hand exactly that much back.
         self.natures_wrath_aspd = 0.0
 
-    abilityScaling = create_ability_scaling([235, 355, 1200], [0, 0, 0])
+    abilityScaling = create_ability_scaling([250, 375, 1200], [0, 0, 0])
     blastScaling = create_ability_scaling(
         [385, 580, 2500], [0, 0, 0], func_name="blastScaling"
     )
@@ -953,7 +959,7 @@ class Ezreal(Champion):
 class Warwick(Champion):
     def __init__(self, level):
         hp = 750
-        atk = 40
+        atk = 45
         curMana = 0
         fullMana = 40
         aspd = 0.75
@@ -1181,7 +1187,7 @@ class Nidalee(Champion):
     # The 3rd javelin's bigger row; NidaleeUlt picks it via
     # ChampionEmpoweredAbilityScaling.
     empoweredScaling = create_ability_scaling(
-        [0, 0, 0], [285, 425, 3000], func_name="empoweredScaling"
+        [0, 0, 0], [300, 450, 3000], func_name="empoweredScaling"
     )
 
     def performAbility(self, opponents, items, time):
@@ -1277,7 +1283,7 @@ class Ashe(Champion):
             "so raising that raises Ashe's damage."
         )
 
-    abilityScaling = create_ability_scaling([440, 660, 1000], [0, 0, 0])
+    abilityScaling = create_ability_scaling([465, 700, 1000], [0, 0, 0])
     # The card's 7/11/220 trail row is two halves, same as Sivir's: 5 + 2 = 7,
     # 8 + 3 = 11, 200 + 20 = 220. The 2% max Health rides on top of this and is
     # added per-target in AsheTrail, since it depends on who is being hit.
@@ -1586,12 +1592,12 @@ class Kayle(Champion):
 
     # 1st Ascension: the magic damage every attack carries, at every star.
     ascensionScaling = create_ability_scaling(
-        [0, 0, 0], [56, 84, 98], func_name="ascensionScaling"
+        [0, 0, 0], [62, 92, 105], func_name="ascensionScaling"
     )
     # 3rd Ascension: the wave, per unit it catches. Flat across stars -- the
-    # card really does say 40/40/40.
+    # card really does say 35/35/35 (18.2; was 40/40/40).
     waveScaling = create_ability_scaling(
-        [0, 0, 0], [40, 40, 40], func_name="waveScaling"
+        [0, 0, 0], [35, 35, 35], func_name="waveScaling"
     )
 
     def performAbility(self, opponents, items, time):
